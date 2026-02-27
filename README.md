@@ -87,24 +87,9 @@ mkfifo err_pipe
 rm err_pipe
 ```
 
-## Example Script
+## Try It
 
-If you run `stream-stepper --steps=3 "./script.sh"`, your `script.sh` should look something like this:
-
-```bash
-#!/bin/bash
-
-echo "Starting process..."
-
-echo "==> Downloading files..."
-sleep 2
-
-echo "==> Compiling assets..."
-sleep 2
-
-echo "==> Cleaning up..."
-sleep 1
-```
+Try the test script with `stream-stepper --steps=7 "./test.sh"`.
 
 ## Dependencies
 
