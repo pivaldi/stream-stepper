@@ -9,7 +9,7 @@ StreamStepper intercepts `stdout` and `stderr` from your scripts. It listens for
 Ensure you have Go installed, then compile the binary:
 
 ```bash
-git clone https://github.com/yourusername/stream-stepper.git
+git clone https://github.com/pivaldi/stream-stepper.git
 cd stream-stepper
 go build -o stream-stepper main.go
 
