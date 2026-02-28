@@ -39,7 +39,6 @@ var (
 )
 
 func main() {
-	// --- 1. Define CLI Flags ---
 	stepsPtr := flag.Int("steps", 0, "Required total steps for 100%")
 	flagPtr := flag.String("flag", defaultTriggerFlag, "Trigger string for progress")
 	taggedPtr := flag.Bool("tagged", false, "Read stdin expecting [OUT] and [ERR] prefixes")
@@ -72,7 +71,7 @@ func main() {
 				msgMu.Unlock()
 
 				app.QueueUpdateDraw(func() {
-					curr, bar := updateProgressBar(progressBarColor)
+					curr, bar := currentProgressBar(progressBarColor)
 					pct := int((curr / float64(totalSteps)) * 100)
 					idx = (idx + 1) % len(frames)
 					statusView.SetText(fmt.Sprintf(" [#00E5FF]%s [white]%s %3d%% [#555555]│[white] %s", frames[idx], bar, pct, msg))
@@ -85,7 +84,7 @@ func main() {
 		}
 	}()
 
-	// --- 5. Data Routing Modes ---
+	// Data Routing Modes ---
 	go func() {
 		defer close(done)
 		var wg sync.WaitGroup
@@ -110,7 +109,7 @@ func main() {
 		}
 	}()
 
-	// --- 6. Start UI ---
+	// Start UI
 	if err := app.SetRoot(layout, true).EnableMouse(true).Run(); err != nil {
 		panic(err)
 	}

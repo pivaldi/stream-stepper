@@ -17,8 +17,6 @@ func buildProgressBar(color string, progress float64, width int) string {
 		color = red
 	}
 	if filledLen >= width {
-		color := "green"
-
 		return fmt.Sprintf("[%s]%s", color, strings.Repeat("█", width))
 	}
 
@@ -43,7 +41,7 @@ func buildProgressBar(color string, progress float64, width int) string {
 	return fmt.Sprintf(format, color, strings.Repeat("█", filledLen), fractionStr, strings.Repeat("─", emptyLen))
 }
 
-func updateProgressBar(color string) (currentPos float64, bar string) {
+func currentProgressBar(color string) (currentPos float64, bar string) {
 	currentPos = float64(min(atomic.LoadInt32(&currentSteps), totalSteps))
 	bar = buildProgressBar(color, float64(currentSteps)/float64(totalSteps), pbWidth)
 

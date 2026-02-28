@@ -37,7 +37,12 @@ func processLine(line string, isErr bool) {
 			msgMu.Unlock()
 		}
 	} else {
-		indent = indentStr
+		_, _, ok := strings.Cut(line, "** ")
+		if ok {
+			color = "yellow"
+		} else {
+			indent = indentStr
+		}
 	}
 
 	writeMu.Lock()
@@ -93,25 +98,27 @@ func finish(err error) {
 		withErrorMsg = colorizeLine(color, " with errors.")
 	}
 
+	symbol = colorizeLine(color, symbol)
+
 	app.QueueUpdateDraw(func() {
-		format := " [%s]%s [white]%s [green]100%% [#555555]│%s [#888888]Press Ctrl+C.[white]"
+		format := " %s %s %s%% [#555555]│[white]%s [#888888]Press Ctrl+C.[white]"
 		pg := ""
+		pct := "100"
 
 		if err == nil {
-			pg = buildProgressBar(progressBarColor, 1.0, pbWidth)
+			pg = buildProgressBar(color, 1.0, pbWidth)
 		} else {
+			doneMsg = colorizeLine(color, "Process aborted.")
 			var curr float64
-			curr, pg = updateProgressBar(red)
-			pct := int((curr / float64(totalSteps)) * 100)
-			format = " [%s]%s [white]%s [green]" + strconv.Itoa(pct) + "%% "
-			format += "[#555555]│[red] Process aborted.%s [#888888]Press Ctrl+C.[white]"
+			curr, pg = currentProgressBar(color)
+			pct = strconv.Itoa(int((curr / float64(totalSteps)) * 100))
 		}
 
-		statusView.SetText(fmt.Sprintf(format, color, symbol, pg, doneMsg))
+		statusView.SetText(fmt.Sprintf(format, symbol, pg, pct, doneMsg))
 	})
 
 	writeMu.Lock()
-	txt := fmt.Sprintf("\n[green]--- Process Complete[white]%s[green] ---[white]", withErrorMsg)
+	txt := fmt.Sprintf("\n[green]--- Process completed[white]%s[green] ---[white]", withErrorMsg)
 	if err != nil {
 		txt = colorizeLine(color, fmt.Sprintf("Process aborted: %v", err))
 	}
