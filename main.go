@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/rivo/tview"
@@ -14,7 +15,7 @@ import (
 const (
 	progressBarColor   = "#33E5FF"
 	defaultTriggerFlag = "==>"
-	defaultPBWidth     = 50
+	defaultPBWidth     = 40
 )
 
 var (
@@ -36,6 +37,8 @@ var (
 	red          = "red"
 	triggerFlag  string
 	totalSteps   int32
+	startTime    time.Time
+	elapsedTime  time.Duration
 )
 
 func main() {
@@ -53,6 +56,7 @@ func main() {
 
 	totalSteps = int32(*stepsPtr)
 	triggerFlag = *flagPtr
+	startTime = time.Now()
 
 	setupTUI()
 
@@ -70,15 +74,21 @@ func main() {
 				msg := statusMsg
 				msgMu.Unlock()
 
+				elapsedTime = time.Since(startTime)
+				currSteps := atomic.LoadInt32(&currentSteps)
+				eta := calculateETA(elapsedTime, currSteps, totalSteps)
+
 				app.QueueUpdateDraw(func() {
 					curr, bar := currentProgressBar(progressBarColor)
 					pct := int((curr / float64(totalSteps)) * 100)
 					idx = (idx + 1) % len(frames)
-					setStatusView(frames[idx], bar, pct, msg)
+					setStatusView(frames[idx], bar, pct, msg, elapsedTime, eta)
 				})
 
 			case <-done:
-				finish(nil)
+				elapsedTime = time.Since(startTime)
+				finish(nil, elapsedTime)
+
 				return
 			}
 		}

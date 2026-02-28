@@ -10,7 +10,11 @@ StreamStepper intercepts `stdout` and `stderr` from your scripts. It listens for
 
 while keeping the raw logs available in a scrollable view.
 
-![Demo](assets/demo.gif)
+## Without StreamStepper
+![Without StreamStepper](assets/script.png)
+
+## With StreamStepper
+![With StreamStepper](assets/stream-stepper.gif)
 
 ## Installation
 

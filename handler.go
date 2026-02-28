@@ -31,7 +31,7 @@ func handleExec(wg *sync.WaitGroup, cmdStr string) {
 
 	if err := cmd.Wait(); err != nil {
 		hasError = true
-		finish(err)
+		finish(err, elapsedTime)
 	}
 }
 

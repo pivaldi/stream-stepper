@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // Helper to read a stream
@@ -61,50 +62,26 @@ func colorizeLine(color, line string) string {
 	return line
 }
 
-func finish(err error) {
-	finishedMu.Lock()
-	defer finishedMu.Unlock()
+func formatTime(d time.Duration) string {
+	totalSeconds := int(d.Seconds())
+	minutes := totalSeconds / 60
+	seconds := totalSeconds % 60
 
-	if finished {
-		return
+	return fmt.Sprintf("%02d:%02d", minutes, seconds)
+}
+
+func calculateETA(elapsed time.Duration, currentSteps, totalSteps int32) time.Duration {
+	if currentSteps == 0 {
+		return 0
 	}
 
-	symbol := "✓"
-	color := "green"
-	doneMsg := colorizeLine(color, " Done.")
-	withErrorMsg := ""
-	if hasError || err != nil {
-		symbol = "✗"
-		color = red
-		doneMsg = colorizeLine(color, " Done with errors.")
-		withErrorMsg = colorizeLine(color, " with errors.")
+	remainingSteps := totalSteps - currentSteps
+	if remainingSteps <= 0 {
+		return 0
 	}
 
-	symbol = colorizeLine(color, symbol)
+	avgTimePerStep := float64(elapsed) / float64(currentSteps)
+	eta := time.Duration(avgTimePerStep * float64(remainingSteps))
 
-	app.QueueUpdateDraw(func() {
-		pg := ""
-		pct := 100
-
-		if err == nil {
-			pg = buildProgressBar(color, 1.0, pbWidth)
-		} else {
-			doneMsg = colorizeLine(color, "Process aborted.")
-			var curr float64
-			curr, pg = currentProgressBar(color)
-			pct = int((curr / float64(totalSteps)) * 100)
-		}
-
-		setStatusView(symbol, pg, pct, doneMsg)
-	})
-
-	writeMu.Lock()
-	txt := fmt.Sprintf("\n[green]--- Process completed[white]%s[green] ---[white]", withErrorMsg)
-	if err != nil {
-		txt = colorizeLine(color, fmt.Sprintf("Process aborted: %v", err))
-	}
-
-	fmt.Fprintln(tuiWriter, txt)
-	writeMu.Unlock()
-	finished = true
+	return eta
 }

@@ -1,6 +1,6 @@
 # demo.tape
 
-Output assets/demo.gif
+Output assets/stream-stepper.gif
 
 Set Shell zsh
 
