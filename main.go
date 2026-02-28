@@ -74,7 +74,7 @@ func main() {
 					curr, bar := currentProgressBar(progressBarColor)
 					pct := int((curr / float64(totalSteps)) * 100)
 					idx = (idx + 1) % len(frames)
-					statusView.SetText(fmt.Sprintf(" [#00E5FF]%s [white]%s %3d%% [#555555]│[white] %s", frames[idx], bar, pct, msg))
+					setStatusView(frames[idx], bar, pct, msg)
 				})
 
 			case <-done:

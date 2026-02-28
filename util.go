@@ -4,12 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
-
-	"github.com/rivo/tview"
 )
 
 // Helper to read a stream
@@ -64,21 +61,6 @@ func colorizeLine(color, line string) string {
 	return line
 }
 
-// Setup the TUI
-func setupTUI() {
-	mainView = tview.NewTextView().SetDynamicColors(true).SetScrollable(true)
-	mainView.SetBorder(true).SetTitle(" Logs ").SetBorderColor(tview.Styles.PrimaryTextColor)
-	mainView.SetChangedFunc(func() { mainView.ScrollToEnd(); app.Draw() })
-
-	statusView = tview.NewTextView().SetDynamicColors(true)
-
-	layout = tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(mainView, 0, 1, false).
-		AddItem(statusView, 1, 0, false)
-
-	tuiWriter = tview.ANSIWriter(mainView)
-}
-
 func finish(err error) {
 	finishedMu.Lock()
 	defer finishedMu.Unlock()
@@ -101,9 +83,8 @@ func finish(err error) {
 	symbol = colorizeLine(color, symbol)
 
 	app.QueueUpdateDraw(func() {
-		format := " %s %s %s%% [#555555]│[white]%s [#888888]Press Ctrl+C.[white]"
 		pg := ""
-		pct := "100"
+		pct := 100
 
 		if err == nil {
 			pg = buildProgressBar(color, 1.0, pbWidth)
@@ -111,10 +92,10 @@ func finish(err error) {
 			doneMsg = colorizeLine(color, "Process aborted.")
 			var curr float64
 			curr, pg = currentProgressBar(color)
-			pct = strconv.Itoa(int((curr / float64(totalSteps)) * 100))
+			pct = int((curr / float64(totalSteps)) * 100)
 		}
 
-		statusView.SetText(fmt.Sprintf(format, symbol, pg, pct, doneMsg))
+		setStatusView(symbol, pg, pct, doneMsg)
 	})
 
 	writeMu.Lock()

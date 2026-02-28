@@ -7,7 +7,7 @@ Set Shell zsh
 # Set up the visual style
 Set FontSize 16
 Set FontFamily "DejaVu Sans Mono"
-Set Width 900
+Set Width 1200
 Set Height 900
 Set TypingSpeed 0.08
 # Set Theme "Dracula"
