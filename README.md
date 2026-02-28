@@ -18,18 +18,11 @@ while keeping the raw logs available in a scrollable view.
 
 ## Installation
 
-Ensure you have Go installed, then compile the binary.
+Ensure you have Go installed, then launch this command:
 
 ```bash
-git clone https://github.com/pivaldi/stream-stepper.git
-cd stream-stepper
-go build -o stream-stepper main.go
-
-# Optional: move to your binary path
-sudo mv stream-stepper /usr/local/bin/
+go install github.com/pivaldi/stream-stepper@latest
 ```
-
-**If you do not want to install `stream-stepper`**, replace the command `stream-stepper` by `go run .`
 
 ## How It Works
 
@@ -107,7 +100,7 @@ mkfifo err_pipe && {
 
 ## Try the Examples
 
-Try the example script:
+Clone the repo and try the example script:
 - `go run . --steps 7 ./examples/deploy.sh`
 - `ERROR=true go run . --steps 7 ./examples/deploy.sh`
 - `EXIT=true go run . --steps 7 ./examples/deploy.sh`
