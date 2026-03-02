@@ -47,7 +47,7 @@ func (h *FIFOHandler) Start(proc processor.LineProcessor, onComplete func(exitCo
 		scanner := bufio.NewScanner(h.stdin)
 		for scanner.Scan() {
 			result := proc.ProcessLine(scanner.Text(), false)
-			_ = h.display.WriteLog(result.FormattedText)
+			h.display.WriteLog(result.FormattedText)
 		}
 	}()
 
@@ -57,7 +57,7 @@ func (h *FIFOHandler) Start(proc processor.LineProcessor, onComplete func(exitCo
 		file, err := os.Open(h.fifoPath)
 		if err != nil {
 			result := proc.ProcessLine(fmt.Sprintf("Failed to open FIFO: %v", err), true)
-			_ = h.display.WriteLog(result.FormattedText)
+			h.display.WriteLog(result.FormattedText)
 
 			return
 		}
@@ -66,7 +66,7 @@ func (h *FIFOHandler) Start(proc processor.LineProcessor, onComplete func(exitCo
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			result := proc.ProcessLine(scanner.Text(), true)
-			_ = h.display.WriteLog(result.FormattedText)
+			h.display.WriteLog(result.FormattedText)
 		}
 	}()
 

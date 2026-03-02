@@ -5,20 +5,46 @@ import (
 	"strings"
 )
 
+type Status int
+
 const (
-	fractionalSteps = 8 // Number of sub-character progress steps for smooth rendering
+	defaultColor            = "#33E5FF"
+	fractionalSteps         = 8 // Number of sub-character progress steps for smooth rendering
+	StatusProcessing Status = iota
+	StatusError
+	StatusOK
 )
+
+func NewStatus(progressing, hasError bool) Status {
+	if hasError {
+		return StatusError
+	}
+
+	if progressing {
+		return StatusProcessing
+	}
+
+	return StatusOK
+}
+
+func (s Status) color() string {
+	switch s {
+	case StatusOK:
+		return "green"
+	case StatusError:
+		return "red"
+	default:
+		return defaultColor
+	}
+}
 
 // BuildProgressBar creates a Unicode progress bar string
 // Ported from existing buildProgressBar and currentProgressBar functions
-func BuildProgressBar(currentSteps, totalSteps int32, hasError bool, width int) string {
+func BuildProgressBar(currentSteps, totalSteps int32, status Status, width int) string {
 	fractions := []string{"", "▏", "▎", "▍", "▌", "▋", "▊", "▉"}
 	nfractions := len(fractions)
 
-	color := "#33E5FF"
-	if hasError {
-		color = "red"
-	}
+	color := status.color()
 
 	// Calculate progress ratio
 	progress := float64(currentSteps) / float64(totalSteps)

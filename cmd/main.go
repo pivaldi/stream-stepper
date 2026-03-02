@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/pivaldi/stream-stepper/internal/processor"
@@ -31,18 +29,8 @@ func main() {
 	done := make(chan struct{})
 	onComplete := createCompletionCallback(tracker, display, *pbWidthPtr, done)
 
-	// Set up signal handling for Ctrl+C
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-	go func() {
-		<-sigChan
-		defer display.Stop()
-		os.Exit(0)
-	}()
-
-	startTicker(display, tracker, *pbWidthPtr, done)
-	startHandler(handler, proc, onComplete)
+	go startTicker(display, tracker, *pbWidthPtr, done)
+	go startHandler(handler, proc, onComplete)
 
 	if err := display.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "UI error: %v\n", err)
@@ -97,61 +85,51 @@ func createCompletionCallback(
 	done chan struct{},
 ) func(int, error) {
 	return func(_ int, err error) {
+		close(done) // Prevents the ticker updates the status later.
+
 		tracker.Finish()
 		elapsed := tracker.GetElapsed()
 
-		// Queue the final display update
-		if tvd, ok := display.(*ui.TViewDisplay); ok {
-			tvd.QueueUpdate(func() {
-				finishDisplay(display, tracker, pbWidth, elapsed, err)
-			})
-		} else {
-			log.Fatal("unexpectd error: can not cast display to ui.TViewDisplay")
-		}
-
-		close(done)
+		finishDisplay(display, tracker, pbWidth, elapsed, err)
 	}
 }
 
 func startTicker(display ui.Display, tracker *progress.Tracker, pbWidth int, done chan struct{}) {
-	go func() {
-		ticker := time.NewTicker(tickerIntervalMS * time.Millisecond)
-		defer ticker.Stop()
-		frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-		idx := 0
+	ticker := time.NewTicker(tickerIntervalMS * time.Millisecond)
+	defer ticker.Stop()
+	frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	idx := 0
 
-		for {
-			select {
-			case <-ticker.C:
-				updateStatus(display, tracker, pbWidth, frames[idx])
-				idx = (idx + 1) % len(frames)
-			case <-done:
-				updateStatus(display, tracker, pbWidth, "✓")
+	for {
+		select {
+		case <-ticker.C:
+			updateStatus(display, tracker, pbWidth, frames[idx])
+			idx = (idx + 1) % len(frames)
+		case <-done:
 
-				return
-			}
+			return
 		}
-	}()
+	}
 }
 
 func startHandler(handler stream.Handler, proc processor.LineProcessor, onComplete func(int, error)) {
-	go func() {
-		_ = handler.Start(proc, onComplete)
-	}()
+	if err := handler.Start(proc, onComplete); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func updateStatus(display ui.Display, tracker *progress.Tracker, pbWidth int, spinner string) {
 	currentSteps := tracker.GetCurrentSteps()
 	totalSteps := tracker.GetTotalSteps()
-	hasError := tracker.HasError()
 	statusMsg := tracker.GetStatusMessage()
 	elapsed := tracker.GetElapsed()
+	pbStatus := progress.NewStatus(true, tracker.HasError())
 
-	progressBar := progress.BuildProgressBar(currentSteps, totalSteps, hasError, pbWidth)
+	progressBar := progress.BuildProgressBar(currentSteps, totalSteps, pbStatus, pbWidth)
 	pct := int((float64(currentSteps) / float64(totalSteps)) * percentMultiplier)
 	eta := progress.CalculateETA(elapsed, currentSteps, totalSteps)
 
-	_ = display.UpdateStatus(
+	display.UpdateStatus(
 		spinner,
 		progressBar,
 		strconv.Itoa(pct),
@@ -183,29 +161,25 @@ func finishDisplay(display ui.Display, tracker *progress.Tracker, pbWidth int, e
 	// Build final progress bar
 	progressBar := ""
 	pct := percentMultiplier
+	pbStatus := progress.NewStatus(false, hasError || err != nil)
+
 	if err == nil {
-		progressBar = progress.BuildProgressBar(totalSteps, totalSteps, hasError, pbWidth)
+		progressBar = progress.BuildProgressBar(totalSteps, totalSteps, pbStatus, pbWidth)
 	} else {
 		doneMsg = fmt.Sprintf("[%s]Process aborted.[white]", color)
 		completionMsg = fmt.Sprintf("[%s]Process aborted: %v[white]", color, err)
-		progressBar = progress.BuildProgressBar(currentSteps, totalSteps, true, pbWidth)
+		progressBar = progress.BuildProgressBar(currentSteps, totalSteps, pbStatus, pbWidth)
 		pct = int((float64(currentSteps) / float64(totalSteps)) * percentMultiplier)
 	}
 
-	// Cast to TViewDisplay to use QueueUpdate
-	if tvd, ok := display.(*ui.TViewDisplay); ok {
-		tvd.QueueUpdate(func() {
-			_ = display.UpdateStatus(
-				symbol,
-				progressBar,
-				strconv.Itoa(pct),
-				progress.FormatTime(elapsed),
-				"00:00",
-				doneMsg,
-			)
-		})
-	}
+	display.UpdateStatus(
+		symbol,
+		progressBar,
+		strconv.Itoa(pct),
+		progress.FormatTime(elapsed),
+		"00:00",
+		doneMsg,
+	)
 
-	_ = display.WriteLog(completionMsg)
-	fmt.Fprintf(os.Stderr, "[FINISH] Completion message written: %s\n", completionMsg)
+	display.WriteLog(completionMsg)
 }

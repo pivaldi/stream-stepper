@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/usr/local/go/bin/go build:*)",
+      "Skill(superpowers:brainstorming)",
+      "Skill(superpowers:writing-plans)",
+      "Skill(superpowers:subagent-driven-development)",
+      "Bash(go build:*)",
+      "Bash(/usr/local/go/bin/go vet ./internal/progress)",
+      "Bash(go mod tidy:*)",
+      "Bash(/usr/local/go/bin/go mod tidy:*)",
+      "Bash(./stream-stepper:*)",
+      "Bash(timeout 5 ./stream-stepper:*)",
+      "Bash(echo:*)",
+      "Bash(ls:*)",
+      "Bash(golangci-lint run:*)",
+      "Bash(./bin/golangci-lint run:*)",
+      "Bash(export PATH=$PATH:/usr/local/go/bin)",
+      "Bash(go version:*)",
+      "Bash(go env:*)",
+      "Bash(export PATH=$PATH:/usr/local/go/bin:/home/claude/go/bin)",
+      "Bash(timeout 3 ./stream-stepper:*)",
+      "Bash(tree:*)",
+      "Bash(/usr/local/go/bin/go run:*)"
+    ]
+  }
+}

@@ -45,7 +45,7 @@ func (h *TaggedHandler) Start(proc processor.LineProcessor, onComplete func(exit
 		}
 
 		result := proc.ProcessLine(line, isErr)
-		_ = h.display.WriteLog(result.FormattedText)
+		h.display.WriteLog(result.FormattedText)
 	}
 
 	onComplete(0, nil)

@@ -38,7 +38,7 @@ func (h *PipeHandler) Start(proc processor.LineProcessor, onComplete func(exitCo
 		scanner := bufio.NewScanner(h.reader)
 		for scanner.Scan() {
 			result := proc.ProcessLine(scanner.Text(), false)
-			_ = h.display.WriteLog(result.FormattedText)
+			h.display.WriteLog(result.FormattedText)
 		}
 	}()
 

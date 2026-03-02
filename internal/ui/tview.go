@@ -5,6 +5,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -34,6 +35,24 @@ func (d *TViewDisplay) Initialize() error {
 		d.app.Draw()
 	})
 
+	// Set a global input capture function
+	d.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlQ, tcell.KeyCtrlC:
+			d.Stop()
+			return nil
+		case tcell.KeyRune:
+			r := event.Rune()
+			if r == 'q' || r == 'Q' {
+				d.Stop()
+				return nil
+			}
+		}
+
+		// Return the original event to allow normal processing
+		return event
+	})
+
 	d.statusView = tview.NewTextView().SetDynamicColors(true)
 
 	d.layout = tview.NewFlex().SetDirection(tview.FlexRow).
@@ -46,17 +65,15 @@ func (d *TViewDisplay) Initialize() error {
 }
 
 // WriteLog appends text to the main scrollable view
-func (d *TViewDisplay) WriteLog(text string) error {
+func (d *TViewDisplay) WriteLog(text string) {
 	d.writeMu.Lock()
 	defer d.writeMu.Unlock()
 
 	fmt.Fprintln(d.tuiWriter, text)
-
-	return nil
 }
 
 // UpdateStatus updates the status bar with progress information
-func (d *TViewDisplay) UpdateStatus(spinner, progressBar, percentage, elapsed, eta, message string) error {
+func (d *TViewDisplay) UpdateStatus(spinner, progressBar, percentage, elapsed, eta, message string) {
 	d.app.QueueUpdateDraw(func() {
 		symbFmt := " %s "
 		barFmt := " %s "
@@ -69,8 +86,6 @@ func (d *TViewDisplay) UpdateStatus(spinner, progressBar, percentage, elapsed, e
 
 		d.statusView.SetText(fmt.Sprintf(format, spinner, progressBar, percentage, elapsed, eta, message))
 	})
-
-	return nil
 }
 
 // Run starts the tview event loop (blocking)
@@ -85,6 +100,9 @@ func (d *TViewDisplay) Run() error {
 // Stop gracefully stops the application
 func (d *TViewDisplay) Stop() {
 	d.app.Stop()
+
+	logContent := d.mainView.GetText(true)
+	fmt.Print(logContent)
 }
 
 // SetTitle sets the main view title

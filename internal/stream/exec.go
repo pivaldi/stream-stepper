@@ -98,7 +98,7 @@ func (h *ExecHandler) readStream(
 	defer wg.Done()
 	for scanner.Scan() {
 		result := proc.ProcessLine(scanner.Text(), isStderr)
-		_ = h.display.WriteLog(result.FormattedText)
+		h.display.WriteLog(result.FormattedText)
 	}
 }
 

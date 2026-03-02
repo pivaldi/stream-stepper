@@ -101,9 +101,9 @@ mkfifo err_pipe && {
 ## Try the Examples
 
 Clone the repo and try the example script:
-- `go run . --steps 7 ./examples/deploy.sh`
-- `ERROR=true go run . --steps 7 ./examples/deploy.sh`
-- `EXIT=true go run . --steps 7 ./examples/deploy.sh`
+- `go run cmd/main.go --steps 7 ./examples/deploy.sh`
+- `ERROR=true go run cmd/main.go --steps 7 ./examples/deploy.sh`
+- `EXIT=true go run cmd/main.go --steps 7 ./examples/deploy.sh`
 
 ## Dependencies
 
