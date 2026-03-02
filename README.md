@@ -21,7 +21,7 @@ while keeping the raw logs available in a scrollable view.
 Ensure you have Go installed, then launch this command:
 
 ```bash
-go install github.com/pivaldi/stream-stepper@latest
+go install github.com/pivaldi/stream-stepper/cmd@latest
 ```
 
 ## How It Works
