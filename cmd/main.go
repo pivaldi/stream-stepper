@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"time"
@@ -113,9 +112,7 @@ func startTicker(display ui.Display, tracker *progress.Tracker, pbWidth int, don
 }
 
 func startHandler(handler stream.Handler, proc processor.LineProcessor, onComplete func(int, error)) {
-	if err := handler.Start(proc, onComplete); err != nil {
-		log.Fatal(err)
-	}
+	_ = handler.Start(proc, onComplete)
 }
 
 func updateStatus(display ui.Display, tracker *progress.Tracker, pbWidth int, spinner string) {

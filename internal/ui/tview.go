@@ -41,12 +41,6 @@ func (d *TViewDisplay) Initialize() error {
 		case tcell.KeyCtrlQ, tcell.KeyCtrlC:
 			d.Stop()
 			return nil
-		case tcell.KeyRune:
-			r := event.Rune()
-			if r == 'q' || r == 'Q' {
-				d.Stop()
-				return nil
-			}
 		}
 
 		// Return the original event to allow normal processing

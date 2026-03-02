@@ -73,8 +73,7 @@ If you want to pipe data but keep `stderr` visually distinct (rendered in red), 
 In this case as `sed` blocks buffering, the parsing is not realtime.
 
 ```bash
-{ ./examples/deploy.sh 2>&1 1>&3 | sed 's/^/[ERR] /' >&2; } 3>&1 1>&2 | sed 's/^/[OUT] /' | stream-stepper --steps=7 --tagged
-
+{ ./examples/deploy.sh 2>&1 1>&3 | sed 's/^/[ERR] /' >&2; } 3>&1 1>&2 | sed 's/^/[OUT] /' | stream-stepper --steps=7 --taggedA
 ```
 
 To fix unbuffered `sed` using `GNU sed`:
