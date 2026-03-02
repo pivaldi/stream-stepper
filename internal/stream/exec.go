@@ -8,19 +8,22 @@ import (
 	"sync"
 
 	"github.com/pivaldi/stream-stepper/internal/processor"
+	"github.com/pivaldi/stream-stepper/internal/progress"
 	"github.com/pivaldi/stream-stepper/internal/ui"
 )
 
 // ExecHandler handles exec input mode (runs command as child process)
 type ExecHandler struct {
 	display ui.Display
+	tracker *progress.Tracker
 	cmdStr  string
 }
 
 // NewExecHandler creates a handler for exec mode
-func NewExecHandler(display ui.Display, cmdStr string) *ExecHandler {
+func NewExecHandler(display ui.Display, tracker *progress.Tracker, cmdStr string) *ExecHandler {
 	return &ExecHandler{
 		display: display,
+		tracker: tracker,
 		cmdStr:  cmdStr,
 	}
 }
@@ -97,8 +100,7 @@ func (h *ExecHandler) readStream(
 ) {
 	defer wg.Done()
 	for scanner.Scan() {
-		result := proc.ProcessLine(scanner.Text(), isStderr)
-		h.display.WriteLog(result.FormattedText)
+		proc.ProcessLine(scanner.Text(), isStderr).Trigger(h.display, h.tracker)
 	}
 }
 

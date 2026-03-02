@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/pivaldi/stream-stepper/internal/processor"
+	defaultprocessor "github.com/pivaldi/stream-stepper/internal/processor/default"
+	stbashprocessor "github.com/pivaldi/stream-stepper/internal/processor/stbash"
 	"github.com/pivaldi/stream-stepper/internal/progress"
 	"github.com/pivaldi/stream-stepper/internal/stream"
 	"github.com/pivaldi/stream-stepper/internal/ui"
@@ -20,15 +22,30 @@ const (
 	percentMultiplier  = 100
 )
 
-func main() {
-	stepsPtr, flagPtr, taggedPtr, fifoPtr, pbWidthPtr := parseFlags()
-	tracker, display := initializeComponents(*stepsPtr)
-	proc := processor.New(*flagPtr, tracker)
-	handler := selectHandler(display, *taggedPtr, *fifoPtr)
-	done := make(chan struct{})
-	onComplete := createCompletionCallback(tracker, display, *pbWidthPtr, done)
+type paramsT struct {
+	stepsPtr     *int
+	flagPtr      *string
+	taggedPtr    *bool
+	fifoPtr      *string
+	pbWidthPtr   *int
+	processorPtr *string
+}
 
-	go startTicker(display, tracker, *pbWidthPtr, done)
+func main() {
+	params := parseFlags()
+	tracker, display := initializeComponents(*params.stepsPtr)
+	var proc processor.LineProcessor
+	switch *params.processorPtr {
+	case "stbash":
+		proc = stbashprocessor.New()
+	default:
+		proc = defaultprocessor.New(*params.flagPtr)
+	}
+	handler := selectHandler(display, tracker, *params.taggedPtr, *params.fifoPtr)
+	done := make(chan struct{})
+	onComplete := createCompletionCallback(tracker, display, *params.pbWidthPtr, done)
+
+	go startTicker(display, tracker, *params.pbWidthPtr, done)
 	go startHandler(handler, proc, onComplete)
 
 	if err := display.Run(); err != nil {
@@ -37,20 +54,24 @@ func main() {
 	}
 }
 
-func parseFlags() (stepsPtr *int, flagPtr *string, taggedPtr *bool, fifoPtr *string, pbWidthPtr *int) {
-	stepsPtr = flag.Int("steps", 0, "Required total steps for 100%")
-	flagPtr = flag.String("flag", defaultTriggerFlag, "Trigger string for progress")
-	taggedPtr = flag.Bool("tagged", false, "Read stdin expecting [OUT] and [ERR] prefixes")
-	fifoPtr = flag.String("err-fifo", "", "Path to a named pipe (FIFO) to read stderr from")
-	pbWidthPtr = flag.Int("pb-width", defaultPBWidth, "Optional progress-bar width")
+func parseFlags() paramsT {
+	p := paramsT{}
+	p.stepsPtr = flag.Int("steps", 0, "Required total steps for 100%")
+	p.flagPtr = flag.String("flag", defaultTriggerFlag, "Trigger string for progress")
+	p.taggedPtr = flag.Bool("tagged", false, "Read stdin expecting [OUT] and [ERR] prefixes")
+	p.fifoPtr = flag.String("err-fifo", "", "Path to a named pipe (FIFO) to read stderr from")
+	p.pbWidthPtr = flag.Int("pb-width", defaultPBWidth, "Optional progress-bar width")
+	p.processorPtr = flag.String("processor", "", `Parsing processor. Only stbash supported for now:
+see https://github.com/pivaldi/bash-stepper`)
+
 	flag.Parse()
 
-	if *stepsPtr <= 0 {
+	if *p.stepsPtr <= 0 {
 		fmt.Println("Error: --steps is required and must be > 0")
 		os.Exit(1)
 	}
 
-	return stepsPtr, flagPtr, taggedPtr, fifoPtr, pbWidthPtr
+	return p
 }
 
 func initializeComponents(steps int) (*progress.Tracker, ui.Display) {
@@ -64,16 +85,16 @@ func initializeComponents(steps int) (*progress.Tracker, ui.Display) {
 	return tracker, display
 }
 
-func selectHandler(display ui.Display, tagged bool, fifoPath string) stream.Handler {
+func selectHandler(display ui.Display, tracker *progress.Tracker, tagged bool, fifoPath string) stream.Handler {
 	switch {
 	case flag.NArg() > 0:
-		return stream.NewExecHandler(display, flag.Arg(0))
+		return stream.NewExecHandler(display, tracker, flag.Arg(0))
 	case tagged:
-		return stream.NewTaggedHandler(display, os.Stdin)
+		return stream.NewTaggedHandler(display, tracker, os.Stdin)
 	case fifoPath != "":
-		return stream.NewFIFOHandler(display, os.Stdin, fifoPath)
+		return stream.NewFIFOHandler(display, tracker, os.Stdin, fifoPath)
 	default:
-		return stream.NewPipeHandler(display, os.Stdin)
+		return stream.NewPipeHandler(display, tracker, os.Stdin)
 	}
 }
 

@@ -6,19 +6,22 @@ import (
 	"sync"
 
 	"github.com/pivaldi/stream-stepper/internal/processor"
+	"github.com/pivaldi/stream-stepper/internal/progress"
 	"github.com/pivaldi/stream-stepper/internal/ui"
 )
 
 // PipeHandler handles standard pipe input mode
 type PipeHandler struct {
 	display ui.Display
+	tracker *progress.Tracker
 	reader  io.Reader
 }
 
 // NewPipeHandler creates a handler for standard pipe mode
-func NewPipeHandler(display ui.Display, reader io.Reader) *PipeHandler {
+func NewPipeHandler(display ui.Display, tracker *progress.Tracker, reader io.Reader) *PipeHandler {
 	return &PipeHandler{
 		display: display,
+		tracker: tracker,
 		reader:  reader,
 	}
 }
@@ -37,8 +40,7 @@ func (h *PipeHandler) Start(proc processor.LineProcessor, onComplete func(exitCo
 		defer wg.Done()
 		scanner := bufio.NewScanner(h.reader)
 		for scanner.Scan() {
-			result := proc.ProcessLine(scanner.Text(), false)
-			h.display.WriteLog(result.FormattedText)
+			proc.ProcessLine(scanner.Text(), false).Trigger(h.display, h.tracker)
 		}
 	}()
 

@@ -42,7 +42,9 @@ All other output is printed indented by one tabulation in the main scrolling win
 * `--flag` (Optional): The string trigger to look for. Default is `==>`.
 * `--tagged` (Optional): Boolean flag to read from `stdin` expecting `[OUT]` and `[ERR]` prefixes.
 * `--err-fifo` (Optional): Path to a named pipe to read `stderr` from.
----
+* `--pb-width` (Optional): The progress-bar width. Default is 40 spaces.
+* `--processor` (Optional): The line processor. Can be change to `stbash` to support [bash-stepper](https://github.com/pivaldi/bash-stepper).
+  See the file [./examples/stbash.sh](./examples/stbash.sh) for an example using `bash-stepper`.
 
 ### Operating Modes
 

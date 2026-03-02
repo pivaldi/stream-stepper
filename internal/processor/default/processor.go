@@ -1,10 +1,10 @@
-package processor
+package defaultprocessor
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/pivaldi/stream-stepper/internal/progress"
+	"github.com/pivaldi/stream-stepper/internal/processor"
 )
 
 const (
@@ -16,23 +16,19 @@ const (
 // Processor implements LineProcessor interface
 type Processor struct {
 	triggerFlag string
-	tracker     *progress.Tracker
 }
 
 // New creates a new line processor
-func New(triggerFlag string, tracker *progress.Tracker) *Processor {
+func New(triggerFlag string) *Processor {
 	return &Processor{
 		triggerFlag: triggerFlag,
-		tracker:     tracker,
 	}
 }
 
 // ProcessLine examines a line for triggers, applies formatting, and returns result
-func (p *Processor) ProcessLine(line string, isStderr bool) ProcessedLine {
-	result := ProcessedLine{
-		FormattedText:  line,
-		IsProgressStep: false,
-		StatusMessage:  "",
+func (p *Processor) ProcessLine(line string, isStderr bool) processor.ProcessedLine {
+	result := processor.ProcessedLine{
+		FormattedText: line,
 	}
 
 	var color string
@@ -49,9 +45,6 @@ func (p *Processor) ProcessLine(line string, isStderr bool) ProcessedLine {
 		if restOfLine != "" {
 			result.StatusMessage = colorizeLine(color, restOfLine)
 		}
-
-		// Increment progress in tracker
-		p.tracker.IncrementStep(result.StatusMessage)
 	} else {
 		// Check for "** " prefix (yellow highlight)
 		if strings.HasPrefix(line, "** ") {
@@ -64,7 +57,7 @@ func (p *Processor) ProcessLine(line string, isStderr bool) ProcessedLine {
 
 	// Stderr lines are red
 	if isStderr {
-		p.tracker.SetError()
+		result.IsError = true
 		color = redColor
 	}
 

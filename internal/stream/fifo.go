@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/pivaldi/stream-stepper/internal/processor"
+	"github.com/pivaldi/stream-stepper/internal/progress"
 	"github.com/pivaldi/stream-stepper/internal/ui"
 )
 
@@ -18,14 +19,19 @@ const (
 // FIFOHandler handles FIFO pipe input mode (stderr from named pipe, stdout from stdin)
 type FIFOHandler struct {
 	display  ui.Display
+	tracker  *progress.Tracker
 	stdin    io.Reader
 	fifoPath string
 }
 
 // NewFIFOHandler creates a handler for FIFO mode
-func NewFIFOHandler(display ui.Display, stdin io.Reader, fifoPath string) *FIFOHandler {
+func NewFIFOHandler(
+	display ui.Display,
+	tracker *progress.Tracker,
+	stdin io.Reader, fifoPath string) *FIFOHandler {
 	return &FIFOHandler{
 		display:  display,
+		tracker:  tracker,
 		stdin:    stdin,
 		fifoPath: fifoPath,
 	}
@@ -46,8 +52,7 @@ func (h *FIFOHandler) Start(proc processor.LineProcessor, onComplete func(exitCo
 		defer wg.Done()
 		scanner := bufio.NewScanner(h.stdin)
 		for scanner.Scan() {
-			result := proc.ProcessLine(scanner.Text(), false)
-			h.display.WriteLog(result.FormattedText)
+			proc.ProcessLine(scanner.Text(), false).Trigger(h.display, h.tracker)
 		}
 	}()
 
@@ -56,8 +61,7 @@ func (h *FIFOHandler) Start(proc processor.LineProcessor, onComplete func(exitCo
 		defer wg.Done()
 		file, err := os.Open(h.fifoPath)
 		if err != nil {
-			result := proc.ProcessLine(fmt.Sprintf("Failed to open FIFO: %v", err), true)
-			h.display.WriteLog(result.FormattedText)
+			proc.ProcessLine(fmt.Sprintf("Failed to open FIFO: %v", err), true).Trigger(h.display, h.tracker)
 
 			return
 		}

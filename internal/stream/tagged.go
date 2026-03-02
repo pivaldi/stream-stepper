@@ -6,19 +6,25 @@ import (
 	"strings"
 
 	"github.com/pivaldi/stream-stepper/internal/processor"
+	"github.com/pivaldi/stream-stepper/internal/progress"
 	"github.com/pivaldi/stream-stepper/internal/ui"
 )
 
 // TaggedHandler handles tagged pipe input mode ([OUT] and [ERR] prefixes)
 type TaggedHandler struct {
 	display ui.Display
+	tracker *progress.Tracker
 	reader  io.Reader
 }
 
 // NewTaggedHandler creates a handler for tagged pipe mode
-func NewTaggedHandler(display ui.Display, reader io.Reader) *TaggedHandler {
+func NewTaggedHandler(
+	display ui.Display,
+	tracker *progress.Tracker,
+	reader io.Reader) *TaggedHandler {
 	return &TaggedHandler{
 		display: display,
+		tracker: tracker,
 		reader:  reader,
 	}
 }
@@ -44,8 +50,7 @@ func (h *TaggedHandler) Start(proc processor.LineProcessor, onComplete func(exit
 			isErr = false
 		}
 
-		result := proc.ProcessLine(line, isErr)
-		h.display.WriteLog(result.FormattedText)
+		proc.ProcessLine(line, isErr).Trigger(h.display, h.tracker)
 	}
 
 	onComplete(0, nil)
