@@ -40,7 +40,7 @@ func (p *Processor) ProcessLine(line string, isStderr bool) processor.ProcessedL
 
 	case strings.HasPrefix(line, "st.h3> "):
 		msg := strings.TrimSpace(strings.TrimPrefix(line, "st.h3> "))
-		result.FormattedText = fmt.Sprintf("[#555555::b] ━ %s ━[::-]", msg)
+		result.FormattedText = fmt.Sprintf("[#5FAFAF::b] ━ %s ━[::-]", msg)
 
 	case strings.HasPrefix(line, "st.doing> "):
 		msg := strings.TrimSpace(strings.TrimPrefix(line, "st.doing> "))
@@ -58,7 +58,7 @@ func (p *Processor) ProcessLine(line string, isStderr bool) processor.ProcessedL
 
 	case strings.HasPrefix(line, "st.skiped> "): // Matches the typo in your bash script
 		msg := strings.TrimSpace(strings.TrimPrefix(line, "st.skiped> "))
-		result.FormattedText = fmt.Sprintf("[#00E5FF] ⏭ %s[white]", msg)
+		result.FormattedText = fmt.Sprintf("[#33E5FF] ⏭ %s[white]", msg)
 
 	case strings.HasPrefix(line, "st.warn> "):
 		msg := strings.TrimSpace(strings.TrimPrefix(line, "st.warn> "))
@@ -71,7 +71,7 @@ func (p *Processor) ProcessLine(line string, isStderr bool) processor.ProcessedL
 
 	case strings.HasPrefix(line, "st.do> "):
 		msg := strings.TrimSpace(strings.TrimPrefix(line, "st.do> "))
-		result.FormattedText = fmt.Sprintf("[#555555] $ %s[white]", msg)
+		result.FormattedText = fmt.Sprintf("[#AFAFAF] $ %s[white]", msg)
 
 	default:
 		// Standard log lines pass through normally
