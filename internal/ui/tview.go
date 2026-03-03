@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"sync/atomic"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -18,6 +19,7 @@ type TViewDisplay struct {
 	layout     *tview.Flex
 	tuiWriter  io.Writer
 	writeMu    sync.Mutex
+	autoScroll atomic.Bool
 }
 
 // NewTViewDisplay creates a new tview-based display
@@ -29,16 +31,43 @@ func NewTViewDisplay() *TViewDisplay {
 
 // Initialize sets up the TUI layout
 func (d *TViewDisplay) Initialize() error {
+	// Enable auto-scroll by default
+	d.autoScroll.Store(true)
+
 	d.mainView = tview.NewTextView().SetDynamicColors(true).SetScrollable(true)
 	d.mainView.SetBorder(true).SetTitle(" Logs ").SetBorderColor(tview.Styles.PrimaryTextColor)
 	d.mainView.SetChangedFunc(func() {
-		d.mainView.ScrollToEnd()
+		// Conditionally trigger ScrollToEnd
+		if d.autoScroll.Load() {
+			d.mainView.ScrollToEnd()
+		}
+
 		d.app.Draw()
+	})
+
+	// Catch Mouse Wheel Up to disable auto-scrolling
+	d.mainView.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
+		if action == tview.MouseScrollUp {
+			d.autoScroll.Store(false)
+		}
+
+		return action, event
 	})
 
 	// Set a global input capture function
 	d.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
+		case tcell.KeyEnter:
+			// Re-enable auto-scroll and immediately jump to the bottom!
+			d.autoScroll.Store(true)
+			d.mainView.ScrollToEnd()
+
+			return nil
+
+		case tcell.KeyUp, tcell.KeyPgUp:
+			// Disable auto-scroll if they use keyboard arrows to look up
+			d.autoScroll.Store(false)
+
 		case tcell.KeyCtrlQ, tcell.KeyCtrlC:
 			d.Stop()
 
@@ -53,6 +82,9 @@ func (d *TViewDisplay) Initialize() error {
 		// Return the original event to allow normal processing
 		return event
 	})
+
+	// Ensure the application is capturing mouse events!
+	d.app.EnableMouse(true)
 
 	d.statusView = tview.NewTextView().SetDynamicColors(true)
 
