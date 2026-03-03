@@ -62,7 +62,7 @@ function st.done() {
 }
 
 function st.nothingTodo() {
-    echo "${GREEN}st.nothingtd> Nothing to do…${RESET_COLOR}"
+    echo "st.nothingtd> ${GREEN}Nothing to do…${RESET_COLOR}"
 }
 
 function st.skipped() {
