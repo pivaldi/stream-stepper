@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	"github.com/pivaldi/stream-stepper/internal/progress"
 	"github.com/pivaldi/stream-stepper/internal/stream"
 	"github.com/pivaldi/stream-stepper/internal/ui"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -22,61 +22,93 @@ const (
 	percentMultiplier  = 100
 )
 
-type paramsT struct {
-	stepsPtr     *int
-	flagPtr      *string
-	taggedPtr    *bool
-	waitPtr      *int
-	fifoPtr      *string
-	pbWidthPtr   *int
-	processorPtr *string
+var (
+	steps         int
+	triggerFlag   string
+	tagged        bool
+	wait          int
+	errFifo       string
+	pbWidth       int
+	processorType string
+
+	rootCmd = &cobra.Command{
+		Use:   "stream-stepper [flags] [command]",
+		Short: "A CLI tool that parses shell command output and renders it in a TUI with a dynamic progress bar",
+		Long: `StreamStepper intercepts stdout/stderr, detects trigger strings (default: "==>"),
+increments a progress bar, extracts status messages, and colorizes output.
+
+Examples:
+  # Execute a command and monitor progress
+  stream-stepper --steps 7 ./examples/deploy.sh
+
+  # Read from stdin with tagged output
+  ./your-script.sh | stream-stepper --steps 5 --tagged
+
+  # Use a FIFO for stderr
+  stream-stepper --steps 10 --err-fifo /tmp/stderr.fifo
+
+  # Use stbash processor for bash-stepper output
+  stream-stepper --steps 10 --processor stbash ./script.sh`,
+		Args: cobra.MaximumNArgs(1),
+		Run:  runStreamStepper,
+	}
+)
+
+func initFlags() {
+	rootCmd.Flags().IntVarP(&steps, "steps", "s", 0, "Total steps for 100% progress (required)")
+	rootCmd.Flags().IntVarP(&wait, "wait", "", -1, "Wait time in seconds before exiting")
+	rootCmd.Flags().StringVarP(&triggerFlag, "flag", "f", defaultTriggerFlag, "Trigger string for progress detection")
+	rootCmd.Flags().BoolVarP(&tagged, "tagged", "t", false, "Read stdin expecting [OUT] and [ERR] prefixes")
+	rootCmd.Flags().StringVar(&errFifo, "err-fifo", "", "Path to a named pipe (FIFO) to read stderr from")
+	rootCmd.Flags().IntVarP(&pbWidth, "pb-width", "w", defaultPBWidth, "Progress bar width in characters")
+	rootCmd.Flags().StringVarP(&processorType, "processor", "p", "",
+		"Parsing processor (only 'stbash' supported, see https://github.com/pivaldi/bash-stepper)")
+
+	// Mark steps as required
+	if err := rootCmd.MarkFlagRequired("steps"); err != nil {
+		fmt.Fprintf(os.Stderr, "Error marking flag as required: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func main() {
-	params := parseFlags()
-	tracker, display := initializeComponents(*params.stepsPtr)
+	initFlags()
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func runStreamStepper(_ *cobra.Command, args []string) {
+	if steps <= 0 {
+		fmt.Fprintf(os.Stderr, "Error: --steps must be greater than 0\n")
+		os.Exit(1)
+	}
+
+	tui := ui.New(initializeComponents(steps))
+
 	var proc processor.LineProcessor
-	switch *params.processorPtr {
+	switch processorType {
 	case "stbash":
 		proc = stbashprocessor.New()
 	default:
-		proc = defaultprocessor.New(*params.flagPtr)
+		proc = defaultprocessor.New(triggerFlag)
 	}
-	handler := selectHandler(display, tracker, *params.taggedPtr, *params.fifoPtr)
-	done := make(chan struct{})
-	onComplete := createCompletionCallback(tracker, display, *params.pbWidthPtr, *params.waitPtr, done)
 
-	go startTicker(display, tracker, *params.pbWidthPtr, done)
+	handler := selectHandler(tui, tagged, errFifo, args)
+	done := make(chan struct{})
+	onComplete := createCompletionCallback(tui, pbWidth, wait, done)
+
+	go startTicker(tui, pbWidth, done)
 	go startHandler(handler, proc, onComplete)
 
-	if err := display.Run(); err != nil {
+	if err := tui.Display.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "UI error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func parseFlags() paramsT {
-	p := paramsT{}
-	p.stepsPtr = flag.Int("steps", 0, "Required total steps for 100%")
-	p.waitPtr = flag.Int("wait", -1, "Wait time in seconds before exiting.")
-	p.flagPtr = flag.String("flag", defaultTriggerFlag, "Trigger string for progress")
-	p.taggedPtr = flag.Bool("tagged", false, "Read stdin expecting [OUT] and [ERR] prefixes")
-	p.fifoPtr = flag.String("err-fifo", "", "Path to a named pipe (FIFO) to read stderr from")
-	p.pbWidthPtr = flag.Int("pb-width", defaultPBWidth, "Optional progress-bar width")
-	p.processorPtr = flag.String("processor", "", `Parsing processor. Only stbash supported for now:
-see https://github.com/pivaldi/bash-stepper`)
-
-	flag.Parse()
-
-	if *p.stepsPtr <= 0 {
-		fmt.Println("Error: --steps is required and must be > 0")
-		os.Exit(1)
-	}
-
-	return p
-}
-
-func initializeComponents(steps int) (*progress.Tracker, ui.Display) {
+func initializeComponents(steps int) (ui.Display, *progress.Tracker) {
 	tracker := progress.NewTracker(int32(steps))
 	display := ui.NewTViewDisplay()
 	if err := display.Initialize(); err != nil {
@@ -84,25 +116,24 @@ func initializeComponents(steps int) (*progress.Tracker, ui.Display) {
 		os.Exit(1)
 	}
 
-	return tracker, display
+	return display, tracker
 }
 
-func selectHandler(display ui.Display, tracker *progress.Tracker, tagged bool, fifoPath string) stream.Handler {
+func selectHandler(tui ui.TUI, tagged bool, fifoPath string, args []string) stream.Handler {
 	switch {
-	case flag.NArg() > 0:
-		return stream.NewExecHandler(display, tracker, flag.Arg(0))
+	case len(args) > 0:
+		return stream.NewExecHandler(tui, args[0])
 	case tagged:
-		return stream.NewTaggedHandler(display, tracker, os.Stdin)
+		return stream.NewTaggedHandler(tui, os.Stdin)
 	case fifoPath != "":
-		return stream.NewFIFOHandler(display, tracker, os.Stdin, fifoPath)
+		return stream.NewFIFOHandler(tui, os.Stdin, fifoPath)
 	default:
-		return stream.NewPipeHandler(display, tracker, os.Stdin)
+		return stream.NewPipeHandler(tui, os.Stdin)
 	}
 }
 
 func createCompletionCallback(
-	tracker *progress.Tracker,
-	display ui.Display,
+	tui ui.TUI,
 	pbWidth int,
 	wait int,
 	done chan struct{},
@@ -110,14 +141,14 @@ func createCompletionCallback(
 	return func(_ int, err error) {
 		close(done) // Prevents the ticker updates the status later.
 
-		tracker.Finish()
-		elapsed := tracker.GetElapsed()
+		tui.Tracker.Finish()
+		elapsed := tui.Tracker.GetElapsed()
 
-		finishDisplay(display, tracker, pbWidth, wait, elapsed, err)
+		finishDisplay(tui, pbWidth, wait, elapsed, err)
 	}
 }
 
-func startTicker(display ui.Display, tracker *progress.Tracker, pbWidth int, done chan struct{}) {
+func startTicker(tui ui.TUI, pbWidth int, done chan struct{}) {
 	ticker := time.NewTicker(tickerIntervalMS * time.Millisecond)
 	defer ticker.Stop()
 	frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
@@ -126,7 +157,7 @@ func startTicker(display ui.Display, tracker *progress.Tracker, pbWidth int, don
 	for {
 		select {
 		case <-ticker.C:
-			updateStatus(display, tracker, pbWidth, frames[idx])
+			updateStatus(tui, pbWidth, frames[idx])
 			idx = (idx + 1) % len(frames)
 		case <-done:
 
@@ -139,18 +170,18 @@ func startHandler(handler stream.Handler, proc processor.LineProcessor, onComple
 	_ = handler.Start(proc, onComplete)
 }
 
-func updateStatus(display ui.Display, tracker *progress.Tracker, pbWidth int, spinner string) {
-	currentSteps := tracker.GetCurrentSteps()
-	totalSteps := tracker.GetTotalSteps()
-	statusMsg := tracker.GetStatusMessage()
-	elapsed := tracker.GetElapsed()
-	pbStatus := progress.NewStatus(true, tracker.HasError())
+func updateStatus(tui ui.TUI, pbWidth int, spinner string) {
+	currentSteps := tui.Tracker.GetCurrentSteps()
+	totalSteps := tui.Tracker.GetTotalSteps()
+	statusMsg := tui.Tracker.GetStatusMessage()
+	elapsed := tui.Tracker.GetElapsed()
+	pbStatus := progress.NewStatus(true, tui.Tracker.HasError())
 
 	progressBar := progress.BuildProgressBar(currentSteps, totalSteps, pbStatus, pbWidth)
 	pct := int((float64(currentSteps) / float64(totalSteps)) * percentMultiplier)
 	eta := progress.CalculateETA(elapsed, currentSteps, totalSteps)
 
-	display.UpdateStatus(
+	tui.Display.UpdateStatus(
 		spinner,
 		progressBar,
 		strconv.Itoa(pct),
@@ -160,10 +191,10 @@ func updateStatus(display ui.Display, tracker *progress.Tracker, pbWidth int, sp
 	)
 }
 
-func finishDisplay(display ui.Display, tracker *progress.Tracker, pbWidth, wait int, elapsed time.Duration, err error) {
-	hasError := err != nil || tracker.HasError()
-	totalSteps := tracker.GetTotalSteps()
-	currentSteps := tracker.GetCurrentSteps()
+func finishDisplay(tui ui.TUI, pbWidth, wait int, elapsed time.Duration, err error) {
+	hasError := err != nil || tui.Tracker.HasError()
+	totalSteps := tui.Tracker.GetTotalSteps()
+	currentSteps := tui.Tracker.GetCurrentSteps()
 
 	symbol := "✓"
 	color := "green"
@@ -193,7 +224,7 @@ func finishDisplay(display ui.Display, tracker *progress.Tracker, pbWidth, wait 
 		pct = int((float64(currentSteps) / float64(totalSteps)) * percentMultiplier)
 	}
 
-	display.UpdateStatus(
+	tui.Display.UpdateStatus(
 		symbol,
 		progressBar,
 		strconv.Itoa(pct),
@@ -202,10 +233,10 @@ func finishDisplay(display ui.Display, tracker *progress.Tracker, pbWidth, wait 
 		doneMsg,
 	)
 
-	display.WriteLog(completionMsg)
+	tui.Display.WriteLog(completionMsg)
 	if wait >= 0 {
 		time.Sleep(time.Duration(wait) * time.Second)
-		display.Stop()
+		tui.Display.Stop()
 		if hasError {
 			os.Exit(1)
 		}

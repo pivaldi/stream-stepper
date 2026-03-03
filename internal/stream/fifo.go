@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/pivaldi/stream-stepper/internal/processor"
-	"github.com/pivaldi/stream-stepper/internal/progress"
 	"github.com/pivaldi/stream-stepper/internal/ui"
 )
 
@@ -18,20 +17,15 @@ const (
 
 // FIFOHandler handles FIFO pipe input mode (stderr from named pipe, stdout from stdin)
 type FIFOHandler struct {
-	display  ui.Display
-	tracker  *progress.Tracker
+	tui      ui.TUI
 	stdin    io.Reader
 	fifoPath string
 }
 
 // NewFIFOHandler creates a handler for FIFO mode
-func NewFIFOHandler(
-	display ui.Display,
-	tracker *progress.Tracker,
-	stdin io.Reader, fifoPath string) *FIFOHandler {
+func NewFIFOHandler(tui ui.TUI, stdin io.Reader, fifoPath string) *FIFOHandler {
 	return &FIFOHandler{
-		display:  display,
-		tracker:  tracker,
+		tui:      tui,
 		stdin:    stdin,
 		fifoPath: fifoPath,
 	}
@@ -40,7 +34,7 @@ func NewFIFOHandler(
 // Start begins reading from stdin and FIFO
 func (h *FIFOHandler) Start(proc processor.LineProcessor, onComplete func(exitCode int, err error)) error {
 	// Cast to access SetTitle method
-	if tvd, ok := h.display.(*ui.TViewDisplay); ok {
+	if tvd, ok := h.tui.Display.(*ui.TViewDisplay); ok {
 		tvd.SetTitle(" Pipe: Stdin + FIFO ")
 	}
 
@@ -52,7 +46,7 @@ func (h *FIFOHandler) Start(proc processor.LineProcessor, onComplete func(exitCo
 		defer wg.Done()
 		scanner := bufio.NewScanner(h.stdin)
 		for scanner.Scan() {
-			proc.ProcessLine(scanner.Text(), false).Trigger(h.display, h.tracker)
+			proc.ProcessLine(scanner.Text(), false).Trigger(h.tui.Display, h.tui.Tracker)
 		}
 	}()
 
@@ -61,7 +55,7 @@ func (h *FIFOHandler) Start(proc processor.LineProcessor, onComplete func(exitCo
 		defer wg.Done()
 		file, err := os.Open(h.fifoPath)
 		if err != nil {
-			proc.ProcessLine(fmt.Sprintf("Failed to open FIFO: %v", err), true).Trigger(h.display, h.tracker)
+			proc.ProcessLine(fmt.Sprintf("Failed to open FIFO: %v", err), true).Trigger(h.tui.Display, h.tui.Tracker)
 
 			return
 		}
@@ -70,7 +64,7 @@ func (h *FIFOHandler) Start(proc processor.LineProcessor, onComplete func(exitCo
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			result := proc.ProcessLine(scanner.Text(), true)
-			h.display.WriteLog(result.FormattedText)
+			h.tui.Display.WriteLog(result.FormattedText)
 		}
 	}()
 

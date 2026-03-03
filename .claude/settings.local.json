@@ -21,7 +21,11 @@
       "Bash(export PATH=$PATH:/usr/local/go/bin:/home/claude/go/bin)",
       "Bash(timeout 3 ./stream-stepper:*)",
       "Bash(tree:*)",
-      "Bash(/usr/local/go/bin/go run:*)"
+      "Bash(/usr/local/go/bin/go run:*)",
+      "Bash(go get:*)",
+      "Bash(/usr/local/go/bin/go version:*)",
+      "Bash(/usr/local/go/bin/go get:*)",
+      "Bash(timeout:*)"
     ]
   }
 }

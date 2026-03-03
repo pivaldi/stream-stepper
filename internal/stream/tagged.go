@@ -6,33 +6,27 @@ import (
 	"strings"
 
 	"github.com/pivaldi/stream-stepper/internal/processor"
-	"github.com/pivaldi/stream-stepper/internal/progress"
 	"github.com/pivaldi/stream-stepper/internal/ui"
 )
 
 // TaggedHandler handles tagged pipe input mode ([OUT] and [ERR] prefixes)
 type TaggedHandler struct {
-	display ui.Display
-	tracker *progress.Tracker
-	reader  io.Reader
+	tui    ui.TUI
+	reader io.Reader
 }
 
 // NewTaggedHandler creates a handler for tagged pipe mode
-func NewTaggedHandler(
-	display ui.Display,
-	tracker *progress.Tracker,
-	reader io.Reader) *TaggedHandler {
+func NewTaggedHandler(tui ui.TUI, reader io.Reader) *TaggedHandler {
 	return &TaggedHandler{
-		display: display,
-		tracker: tracker,
-		reader:  reader,
+		tui:    tui,
+		reader: reader,
 	}
 }
 
 // Start begins reading from the tagged pipe
 func (h *TaggedHandler) Start(proc processor.LineProcessor, onComplete func(exitCode int, err error)) error {
 	// Cast to access SetTitle method
-	if tvd, ok := h.display.(*ui.TViewDisplay); ok {
+	if tvd, ok := h.tui.Display.(*ui.TViewDisplay); ok {
 		tvd.SetTitle(" Pipe: Tagged Stdin ")
 	}
 
@@ -50,7 +44,7 @@ func (h *TaggedHandler) Start(proc processor.LineProcessor, onComplete func(exit
 			isErr = false
 		}
 
-		proc.ProcessLine(line, isErr).Trigger(h.display, h.tracker)
+		proc.ProcessLine(line, isErr).Trigger(h.tui.Display, h.tui.Tracker)
 	}
 
 	onComplete(0, nil)
