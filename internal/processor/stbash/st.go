@@ -73,6 +73,10 @@ func (p *Processor) ProcessLine(line string, isStderr bool) processor.ProcessedL
 		msg := strings.TrimSpace(strings.TrimPrefix(line, "st.do> "))
 		result.FormattedText = fmt.Sprintf("[#AFAFAF] $ %s[white]", msg)
 
+	case strings.HasPrefix(line, "st.success> "):
+		msg := strings.TrimSpace(strings.TrimPrefix(line, "st.success> "))
+		result.FormattedText = fmt.Sprintf("[green::b] ✓ %s[::-]", strings.ToUpper(msg))
+
 	default:
 		// Standard log lines pass through normally
 		result.FormattedText = "\t" + line

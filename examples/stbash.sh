@@ -43,7 +43,8 @@ st.do sleep 2
 st.do echo "digest: sha256:7b5d1e4 size: 2314"
 st.done "PUSHED"
 
-st.h1 "Pipeline Finished Successfully"
+st.success "Pipeline Finished Successfully"
+
 st.doing "Post-deployment health check"
 st.do sleep 1
 st.fail "Server responded with 500 Internal Server Error"

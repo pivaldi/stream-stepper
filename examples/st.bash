@@ -61,6 +61,12 @@ function st.done() {
     echo "st.done> ${DOING_MSG:-} : ${GREEN}$DONE${RESET_COLOR}"
 }
 
+function st.success() {
+    local MSG="${1:-SUCCESS}"
+
+    echo "st.success> ${BOLD}${GREEN}${MSG}${RESET_COLOR}${OFFBOLD}"
+}
+
 function st.nothingTodo() {
     echo "st.nothingtd> ${GREEN}Nothing to do…${RESET_COLOR}"
 }
@@ -80,9 +86,8 @@ function st.fail() {
 }
 
 function st.do() {
-    # https://unix.stackexchange.com/questions/148109/shifting-command-output-to-the-right
     local -a cmd=("$@")
-    echo "st.do> ${BLUE_CYAN}${cmd[@]}${RESET_COLOR}"
+    echo "st.do> ${BLUE_CYAN}${cmd[*]}${RESET_COLOR}"
 
     "${cmd[@]}" || st.fail "Command failed: ${cmd[*]}"
 }
