@@ -33,9 +33,7 @@ func New(escape func(string) string, triggerFlag string) *Processor {
 
 // ProcessLine examines a line for triggers, applies formatting, and returns result
 func (p *Processor) ProcessLine(line string, isStderr bool) processor.ProcessedLine {
-	result := processor.ProcessedLine{
-		FormattedText: line,
-	}
+	result := processor.ProcessedLine{}
 
 	var color string
 	var indent string
@@ -49,8 +47,11 @@ func (p *Processor) ProcessLine(line string, isStderr bool) processor.ProcessedL
 		// Extract status message after trigger
 		restOfLine := strings.TrimSpace(after)
 		if restOfLine != "" {
-			result.StatusMessage = colorizeLine(p.Escape, color, restOfLine)
+			result.StatusMessage = colorizeLine(color, p.Escape(restOfLine))
 		}
+
+		result.FormattedText = result.StatusMessage
+
 	} else {
 		// Check for "** " prefix (yellow highlight)
 		if strings.HasPrefix(line, "** ") {
@@ -67,14 +68,14 @@ func (p *Processor) ProcessLine(line string, isStderr bool) processor.ProcessedL
 		color = redColor
 	}
 
-	result.FormattedText = colorizeLine(p.Escape, color, indent+line)
+	result.FormattedText = colorizeLine(color, p.Escape(indent+line))
 
 	return result
 }
 
-func colorizeLine(escape func(string) string, color, line string) string {
+func colorizeLine(color, line string) string {
 	if color != "" {
-		return fmt.Sprintf("[%s]%s[white]", color, escape(line))
+		return fmt.Sprintf("[%s]%s[white]", color, line)
 	}
 
 	return line

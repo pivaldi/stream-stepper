@@ -34,6 +34,7 @@ st.do echo "ok      github.com/pivaldi/utils 0.112s"
 st.done "[PASSED]"
 
 st.doing "Generating code coverage report"
+st.do >&2 echo "output to stderr"
 st.do sleep 1
 st.skipped
 
