@@ -9,6 +9,7 @@ type Display interface {
 	UpdateStatus(spinner, progressBar, percentage, elapsed, eta, message string)
 	Run() error
 	Stop()
+	Escape(text string) string
 }
 
 type TUI struct {

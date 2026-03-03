@@ -31,7 +31,7 @@ st.doing "Running Go unit tests"
 st.do sleep 1
 st.do echo "ok      github.com/pivaldi/app   0.452s"
 st.do echo "ok      github.com/pivaldi/utils 0.112s"
-st.done "PASSED"
+st.done "[PASSED]"
 
 st.doing "Generating code coverage report"
 st.do sleep 1
@@ -41,10 +41,10 @@ st.h2 "Phase 3: Finalization"
 st.doing "Pushing Docker image to registry"
 st.do sleep 2
 st.do echo "digest: sha256:7b5d1e4 size: 2314"
-st.done "PUSHED"
+st.done "[PUSHED]"
 
 st.success "Pipeline Finished Successfully"
 
 st.doing "Post-deployment health check"
 st.do sleep 1
-st.fail "Server responded with 500 Internal Server Error"
+st.fail "Server responded with 500 Internal Server Error" || st.abort

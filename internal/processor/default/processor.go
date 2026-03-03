@@ -15,12 +15,18 @@ const (
 
 // Processor implements LineProcessor interface
 type Processor struct {
+	escape      func(string) string
 	triggerFlag string
 }
 
+func (p *Processor) Escape(text string) string {
+	return p.escape(text)
+}
+
 // New creates a new line processor
-func New(triggerFlag string) *Processor {
+func New(escape func(string) string, triggerFlag string) *Processor {
 	return &Processor{
+		escape:      escape,
 		triggerFlag: triggerFlag,
 	}
 }
@@ -43,7 +49,7 @@ func (p *Processor) ProcessLine(line string, isStderr bool) processor.ProcessedL
 		// Extract status message after trigger
 		restOfLine := strings.TrimSpace(after)
 		if restOfLine != "" {
-			result.StatusMessage = colorizeLine(color, restOfLine)
+			result.StatusMessage = colorizeLine(p.Escape, color, restOfLine)
 		}
 	} else {
 		// Check for "** " prefix (yellow highlight)
@@ -61,14 +67,14 @@ func (p *Processor) ProcessLine(line string, isStderr bool) processor.ProcessedL
 		color = redColor
 	}
 
-	result.FormattedText = colorizeLine(color, indent+line)
+	result.FormattedText = colorizeLine(p.Escape, color, indent+line)
 
 	return result
 }
 
-func colorizeLine(color, line string) string {
+func colorizeLine(escape func(string) string, color, line string) string {
 	if color != "" {
-		return fmt.Sprintf("[%s]%s[white]", color, line)
+		return fmt.Sprintf("[%s]%s[white]", color, escape(line))
 	}
 
 	return line

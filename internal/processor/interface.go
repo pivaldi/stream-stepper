@@ -8,6 +8,7 @@ import (
 // LineProcessor processes input lines and detects progress triggers
 type LineProcessor interface {
 	ProcessLine(line string, isStderr bool) ProcessedLine
+	Escape(string) string
 }
 
 // ProcessedLine represents a processed line with metadata

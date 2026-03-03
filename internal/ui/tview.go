@@ -98,6 +98,10 @@ func (d *TViewDisplay) Run() error {
 	return nil
 }
 
+func (d *TViewDisplay) Escape(test string) string {
+	return tview.Escape(test)
+}
+
 // Stop gracefully stops the application
 func (d *TViewDisplay) Stop() {
 	logContent := d.mainView.GetText(true)

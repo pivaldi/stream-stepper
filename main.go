@@ -90,9 +90,9 @@ func runStreamStepper(_ *cobra.Command, args []string) {
 	var proc processor.LineProcessor
 	switch processorType {
 	case "stbash":
-		proc = stbashprocessor.New()
+		proc = stbashprocessor.New(tui.Display.Escape)
 	default:
-		proc = defaultprocessor.New(triggerFlag)
+		proc = defaultprocessor.New(tui.Display.Escape, triggerFlag)
 	}
 
 	handler := selectHandler(tui, tagged, errFifo, args)
