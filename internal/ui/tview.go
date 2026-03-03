@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"io"
+	"os"
 	"sync"
 
 	"github.com/gdamore/tcell/v2"
@@ -40,7 +41,13 @@ func (d *TViewDisplay) Initialize() error {
 		switch event.Key() {
 		case tcell.KeyCtrlQ, tcell.KeyCtrlC:
 			d.Stop()
+
 			return nil
+		case tcell.KeyRune:
+			if event.Rune() == 'q' || event.Rune() == 'Q' {
+				d.Stop()
+				os.Exit(1)
+			}
 		}
 
 		// Return the original event to allow normal processing
@@ -75,7 +82,7 @@ func (d *TViewDisplay) UpdateStatus(spinner, progressBar, percentage, elapsed, e
 		sepFmt := " [#555555]│[white] "
 		timeFmt := "[#dcdccc]%s/%s[white]"
 		msgFmt := "%s"
-		ctrlFmt := " [#888888]Press Ctrl+C.[white]"
+		ctrlFmt := " [#888888]Press Ctrl+C (exit 0) or q/Q (exit 1)[white]"
 		format := symbFmt + barFmt + pctFmt + sepFmt + timeFmt + sepFmt + msgFmt + ctrlFmt
 
 		d.statusView.SetText(fmt.Sprintf(format, spinner, progressBar, percentage, elapsed, eta, message))
@@ -93,10 +100,10 @@ func (d *TViewDisplay) Run() error {
 
 // Stop gracefully stops the application
 func (d *TViewDisplay) Stop() {
+	logContent := d.mainView.GetText(true)
 	d.app.Stop()
 
-	logContent := d.mainView.GetText(true)
-	fmt.Print(logContent)
+	fmt.Println(logContent)
 }
 
 // SetTitle sets the main view title

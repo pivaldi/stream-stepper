@@ -26,6 +26,7 @@ type paramsT struct {
 	stepsPtr     *int
 	flagPtr      *string
 	taggedPtr    *bool
+	waitPtr      *int
 	fifoPtr      *string
 	pbWidthPtr   *int
 	processorPtr *string
@@ -43,7 +44,7 @@ func main() {
 	}
 	handler := selectHandler(display, tracker, *params.taggedPtr, *params.fifoPtr)
 	done := make(chan struct{})
-	onComplete := createCompletionCallback(tracker, display, *params.pbWidthPtr, done)
+	onComplete := createCompletionCallback(tracker, display, *params.pbWidthPtr, *params.waitPtr, done)
 
 	go startTicker(display, tracker, *params.pbWidthPtr, done)
 	go startHandler(handler, proc, onComplete)
@@ -57,6 +58,7 @@ func main() {
 func parseFlags() paramsT {
 	p := paramsT{}
 	p.stepsPtr = flag.Int("steps", 0, "Required total steps for 100%")
+	p.waitPtr = flag.Int("wait", -1, "Wait time in seconds before exiting.")
 	p.flagPtr = flag.String("flag", defaultTriggerFlag, "Trigger string for progress")
 	p.taggedPtr = flag.Bool("tagged", false, "Read stdin expecting [OUT] and [ERR] prefixes")
 	p.fifoPtr = flag.String("err-fifo", "", "Path to a named pipe (FIFO) to read stderr from")
@@ -102,6 +104,7 @@ func createCompletionCallback(
 	tracker *progress.Tracker,
 	display ui.Display,
 	pbWidth int,
+	wait int,
 	done chan struct{},
 ) func(int, error) {
 	return func(_ int, err error) {
@@ -110,7 +113,7 @@ func createCompletionCallback(
 		tracker.Finish()
 		elapsed := tracker.GetElapsed()
 
-		finishDisplay(display, tracker, pbWidth, elapsed, err)
+		finishDisplay(display, tracker, pbWidth, wait, elapsed, err)
 	}
 }
 
@@ -157,8 +160,8 @@ func updateStatus(display ui.Display, tracker *progress.Tracker, pbWidth int, sp
 	)
 }
 
-func finishDisplay(display ui.Display, tracker *progress.Tracker, pbWidth int, elapsed time.Duration, err error) {
-	hasError := tracker.HasError()
+func finishDisplay(display ui.Display, tracker *progress.Tracker, pbWidth, wait int, elapsed time.Duration, err error) {
+	hasError := err != nil || tracker.HasError()
 	totalSteps := tracker.GetTotalSteps()
 	currentSteps := tracker.GetCurrentSteps()
 
@@ -167,7 +170,7 @@ func finishDisplay(display ui.Display, tracker *progress.Tracker, pbWidth int, e
 	doneMsg := fmt.Sprintf("[%s] Done.[white]", color)
 	completionMsg := "\n[green]--- Process completed[white] ---"
 
-	if hasError || err != nil {
+	if hasError {
 		symbol = "✗"
 		color = "red"
 		doneMsg = fmt.Sprintf("[%s] Done with errors.[white]", color)
@@ -179,7 +182,7 @@ func finishDisplay(display ui.Display, tracker *progress.Tracker, pbWidth int, e
 	// Build final progress bar
 	progressBar := ""
 	pct := percentMultiplier
-	pbStatus := progress.NewStatus(false, hasError || err != nil)
+	pbStatus := progress.NewStatus(false, hasError)
 
 	if err == nil {
 		progressBar = progress.BuildProgressBar(totalSteps, totalSteps, pbStatus, pbWidth)
@@ -200,4 +203,11 @@ func finishDisplay(display ui.Display, tracker *progress.Tracker, pbWidth int, e
 	)
 
 	display.WriteLog(completionMsg)
+	if wait >= 0 {
+		time.Sleep(time.Duration(wait) * time.Second)
+		display.Stop()
+		if hasError {
+			os.Exit(1)
+		}
+	}
 }
